@@ -1,0 +1,180 @@
+//    hadoop jar Prithvi/VC_Prithvi.jar 
+//      Driver_VC 
+//      /user/student/Prithvi/VC/Input1 
+//      /user/student/Prithvi/VC/input2 
+//      /user/student/Prithvi/VC/tmp_op 
+//      /user/student/Prithvi/VC/fnl_op
+
+
+// DRIVER
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Driver_VC 
+	{
+
+		public static void main(String[] args) 
+				throws Exception 	
+					{
+						if (args.length != 4) {
+						System.out.printf("Usage: StubDriver <input dir> <tmp dir> <output dir>\n");
+						System.exit(-1);
+					}
+				
+				JobConf conf = new JobConf();
+				@SuppressWarnings("deprecation")
+				Job job = new Job(conf, "Vote_count");
+				job.setJarByClass(Driver_VC.class);
+				job.setMapperClass(Mapper_VC.class);
+				job.setReducerClass(Reducer_VC.class);
+				job.setOutputKeyClass(Text.class);
+				job.setOutputValueClass(Text.class);
+				job.setMapOutputKeyClass(Text.class);
+				job.setMapOutputValueClass(Text.class);
+				FileInputFormat.addInputPath(job, new Path(args[0]));
+				FileInputFormat.addInputPath(job, new Path(args[1]));
+				FileOutputFormat.setOutputPath(job, new Path(args[2]));
+				
+				@SuppressWarnings("deprecation")
+				Job job2 = new Job(conf, "Vote_Count2");
+				job2.setJarByClass(Driver_VC.class);
+				job2.setMapperClass(Mapper_VC2.class);
+				job2.setReducerClass(Reducer_VC2.class);
+				job2.setOutputKeyClass(Text.class);
+				job2.setOutputValueClass(LongWritable.class);
+				job2.setMapOutputKeyClass(Text.class);
+    			job2.setMapOutputValueClass(Text.class);
+				FileInputFormat.addInputPath(job2, new Path(args[2]));
+				FileOutputFormat.setOutputPath(job2, new Path(args[3]));
+				
+				boolean result = job.waitForCompletion(true);
+				boolean result2 = job2.waitForCompletion(true);
+
+			System.exit(result2 && result ? 0 : 1);
+			
+	}
+	}
+
+// MAPPER 1
+
+import java.io.IOException;
+//import java.util.Arrays;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_VC  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String[] words = value.toString().split("[\n]");
+	  for(String word:words)
+	  {
+		 System.out.println("Key:"+ key + " Value:"+ value + " contect:" + context);
+		  
+		  String key1 = word.substring(0, word.indexOf("\t"));
+		  String value1 = word.substring(word.indexOf("\t")+1);
+		  context.write(new Text(key1), new Text(value1));	  
+	 System.out.println("Key : " +key1 + " Value : " + value1);
+	  }
+  }
+}
+
+
+// REDUCER 1
+
+import java.io.IOException;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_VC extends Reducer<Text, Text, Text, Text> {
+
+@Override
+public void reduce(Text key, Iterable<Text> values, Context context)
+    throws IOException, InterruptedException 
+	{
+		String op = new String("");
+		for(Text iw:values)
+			{
+				String value1 = iw.toString();
+				op = op + value1;
+			}
+ 	 
+	int len = op.replaceAll("[0-9]","").length();
+
+	String worth; 
+			if (op.replaceAll("[a-zA-Z]","") == "")
+				worth ="0"; 
+			else  worth = op.replaceAll("[a-zA-Z]","");
+	
+	String op2 = op;
+	for (int i =0; i < len; i++ )
+	{
+		 
+		context.write(new Text(op2.replaceAll("[0-9]","").substring(0,1)), new Text(worth));
+		 op2 = op2.replaceAll("[0-9]","").substring(1);
+	}
+	
+	// context.write(new Text(op.replaceAll("[0-9]","")), new Text(op.replaceAll("[a-zA-Z]","")));
+	 context.write(key, new Text("0"));
+}
+}
+
+
+//MAPPER 2
+
+import java.io.IOException;
+
+//import java.util.Arrays;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_VC2  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException 
+  	{
+
+	  String words = value.toString();
+		  context.write(new Text(words.substring(0, words.indexOf("\t"))), new Text(words.substring(words.indexOf("\t")+1)));	  	 
+	}
+  
+}
+
+
+// REDUCER 2
+
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_VC2 extends Reducer<Text, Text, Text, LongWritable> {
+
+@Override
+public void reduce(Text key, Iterable<Text> values, Context context)
+    throws IOException, InterruptedException 
+	{
+		int op = 0;
+		for(Text iw:values)
+			{
+				String value1 = iw.toString();
+				op = op + Integer.parseInt(value1);
+			}
+		context.write(new Text(key), new LongWritable(op));
+}
+}
+
+
