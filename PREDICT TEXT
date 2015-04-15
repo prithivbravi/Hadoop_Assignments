@@ -1,0 +1,188 @@
+//    hadoop jar Prithvi/Predicttxt_Prithvi.jar 
+//      Driver_Predict 
+//        /user/student/Prithvi/Predictive_text/Input 
+//        /user/student/Prithvi/Predictive_text/Output_tmp 
+//        /user/student/Prithvi/Predictive_text/Output_fnl
+
+//DRIVER
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Driver_Predict 
+	{
+
+		public static void main(String[] args) 
+				throws Exception 	
+					{
+						if (args.length != 3) {
+						System.out.printf("Usage: Driver_Predict <input dir> <tmp dir> <output dir>\n");
+						System.exit(-1);
+					}
+				
+				JobConf conf = new JobConf();
+				
+				
+				@SuppressWarnings("deprecation")
+				Job job = new Job(conf, "Predict");
+				job.setJarByClass(Driver_Predict.class);
+				job.setMapperClass(Mapper_Predict.class);
+				job.setReducerClass(Reducer_Predict.class);
+				job.setOutputKeyClass(Text.class);
+				job.setOutputValueClass(LongWritable.class);
+				job.setMapOutputKeyClass(Text.class);
+				job.setMapOutputValueClass(LongWritable.class);
+				FileInputFormat.addInputPath(job, new Path(args[0]));
+				FileOutputFormat.setOutputPath(job, new Path(args[1]));
+				boolean result = job.waitForCompletion(true);
+
+				@SuppressWarnings("deprecation")
+				Job job2 = new Job(conf, "Predict_2");
+				job2.setJarByClass(Driver_Predict.class);
+				job2.setMapperClass(Mapper_Predict2.class);
+				job2.setReducerClass(Reducer_Predict2.class);
+				job2.setOutputKeyClass(Text.class);
+				job2.setOutputValueClass(Text.class);
+				job2.setMapOutputKeyClass(Text.class);
+				job2.setMapOutputValueClass(Text.class);				
+				FileInputFormat.addInputPath(job2, new Path(args[1]));
+				FileOutputFormat.setOutputPath(job2,new Path(args[2]) );
+				boolean result2 = job2.waitForCompletion(true);
+
+			System.exit(result && result2 ? 0 : 1);
+	}
+	}
+
+//MAPPER - 1
+
+import java.io.IOException;
+//import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_Predict extends Mapper<Object, Text, Text, LongWritable> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String  PreWord = new String ("");
+	  
+	  String[] words = value.toString().split("[ \t\n]+");
+	  for(String word:words)
+	  {
+		 word = word.toLowerCase();
+		  word = word.replaceAll("[^a-zA-Z0-9.]","");
+		  String text = PreWord +"-"+ word;
+	
+		 if(!text.substring(0, 1).contains("-"))
+		 {
+			 System.out.println(text.substring(0, 1) + "!-->" + text);	
+			 context.write(new Text(text), new LongWritable(1));
+		 }
+		  
+		  if(!word.contains("."))
+			  PreWord = word;
+		  else 
+			  PreWord = "";
+	  
+	  }
+  }
+}
+
+
+//REDUCER - 1
+import java.io.IOException;
+
+//import org.apache.hadoop.io.DoubleWritable;
+//import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class Reducer_Predict extends Reducer<Text, LongWritable, Text, LongWritable> {
+
+  @Override
+  public void reduce(Text key, Iterable<LongWritable> values, Context context)
+      throws IOException, InterruptedException {
+	  
+	  long sum = 0;
+	  for(LongWritable iw:values)
+	  {
+		  sum += iw.get();
+	  }  
+	  context.write(key, new LongWritable(sum));
+  }
+}
+
+
+//MAPPER - 2
+
+import java.io.IOException;
+//import java.util.Arrays;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_Predict2  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String[] words = value.toString().split("[\n]");
+	  for(String word:words)
+	  {
+		  String key1 = word.substring(0, word.indexOf("-"));
+		  String value1 = word.substring(word.indexOf("\t")+1) + "-" + word.substring(word.indexOf("-")+1, word.indexOf("\t"));
+		  context.write(new Text(key1), new Text(value1));	  
+	  }
+  }
+}
+
+
+// REDUCER - 2
+
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_Predict2 extends Reducer<Text, Text, Text, Text> {
+
+@Override
+public void reduce(Text key, Iterable<Text> values, Context context)
+    throws IOException, InterruptedException 
+	{
+		
+		ArrayList<String> Valuelist = new ArrayList<String>();
+		String op = new String("");
+		for(Text iw:values)
+			{
+				String value1 = iw.toString();
+				Valuelist.add(value1);
+			}
+
+		Collections.sort(Valuelist);
+		
+		int i = Valuelist.size()-1;
+		
+		System.out.println(i);
+
+			for (int cnt = i; cnt > i-5 && cnt >-1 ; cnt--)
+			{
+					
+					System.out.println( Valuelist.get(cnt) );
+					op = op + ", " + Valuelist.get(cnt).substring(Valuelist.get(cnt).indexOf("-")+ 1);
+			}
+		context.write(key, new Text(op.substring(2)));
+}
+}
