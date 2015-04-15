@@ -1,0 +1,92 @@
+//    COMMAND TO RUN : hadoop jar Prithvi/TicTacToe_Prithvi.jar Driver_TicTacToe
+//          /user/student/Prithvi/TicTacToe/Input 
+//          /user/student/Prithvi/TicTacToe/Output
+
+
+// DRIVER CLASS
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Driver_TicTacToe 
+	{
+
+		public static void main(String[] args) 
+				throws Exception 	
+				{
+					if (args.length != 2) 
+						{
+							System.out.printf("Usage: StubDriver <input dir> <output dir>\n");
+							System.exit(-1);
+						}
+			
+					JobConf conf = new JobConf();
+					@SuppressWarnings("deprecation")
+					Job job = new Job(conf, "TictacToe");
+					job.setJarByClass(Driver_TicTacToe.class);
+					job.setMapperClass(Mapper_TicTacToe.class);
+					job.setReducerClass(Reducer_TicTacToe.class);
+					job.setOutputKeyClass(Text.class);
+					job.setOutputValueClass(Text.class);
+					job.setMapOutputKeyClass(Text.class);
+					job.setMapOutputValueClass(Text.class);
+					FileInputFormat.addInputPath(job, new Path(args[0]));
+					FileOutputFormat.setOutputPath(job, new Path(args[1]));
+					boolean result = job.waitForCompletion(true);
+					System.exit(result ? 0 : 1);
+				}
+	}
+	
+	
+// MAPPER CLASS
+	
+import java.io.IOException;
+import java.util.Arrays;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_TicTacToe  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String[] words = value.toString().split("[ \t]+");
+	  for(String word:words)
+	  {
+		  char[] chars = word.toCharArray();
+		  Arrays.sort(chars);
+		  String newWord = new String(chars);
+		  context.write(new Text(newWord), new Text(word));	  
+	  }
+  }
+}
+
+
+// REDUCER CLASS
+
+import java.io.IOException;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_TicTacToe extends Reducer<Text, Text, Text, Text> 
+{
+	@Override
+	public void reduce(Text key, Iterable<Text> values, Context context)
+	    throws IOException, InterruptedException 
+		{
+			String op = new String("");
+			for(Text iw:values)
+				{
+					String value1 = iw.toString();
+					op = op + ", " + value1;
+				}
+		 context.write(key, new Text(op.substring(2)));
+		}
+}
+
+
