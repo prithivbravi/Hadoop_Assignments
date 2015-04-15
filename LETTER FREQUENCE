@@ -1,0 +1,117 @@
+//    hadoop jar Prithvi/letterfreq_Prithvi.jar 
+//      Driver_letterfreq 
+//      /user/student/Prithvi/letterfreq/Input 
+//      /user/student/Prithvi/letterfreq/Output
+
+//DRIVER
+
+import org.apache.hadoop.fs.Path;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Driver_letterfreq 
+	{
+
+		public static void main(String[] args) 
+				throws Exception 	
+					{
+						if (args.length != 2) {
+						System.out.printf("Usage: StubDriver <input dir> <output dir>\n");
+						System.exit(-1);
+					}
+				
+				JobConf conf = new JobConf();
+				@SuppressWarnings("deprecation")
+				Job job = new Job(conf, "wordcount");
+				job.setJarByClass(Driver_letterfreq.class);
+				job.setMapperClass(Mapper_letterfreq.class);
+				job.setReducerClass(Reducer_letterfreq.class);
+			
+			//Map reduce Output
+				
+				job.setOutputKeyClass(Text.class);
+				job.setOutputValueClass(Text.class);
+				
+			//Map outputs
+				job.setMapOutputKeyClass(Text.class);
+				job.setMapOutputValueClass(Text.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		boolean result = job.waitForCompletion(true);
+		System.exit(result ? 0 : 1);
+	}
+	}
+
+//MAPPER
+
+import java.io.IOException;
+//import java.util.Arrays;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_letterfreq  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String[] words = value.toString().split("");
+	  for(String word:words)
+	  {
+		  word = word.toUpperCase(); 
+		  if(word.matches("[A-Z0-9]"))
+			 context.write(new Text(word.toUpperCase()), new Text(word.toUpperCase()) );
+	  }
+  }
+}
+
+//REDUCER
+
+import java.io.IOException;
+
+import java.util.HashMap;
+import java.util.Map;
+
+//import org.apache.hadoop.io.DoubleWritable;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_letterfreq extends Reducer<Text, Text, Text, Text> {
+
+@Override
+public void reduce(Text key, Iterable<Text> values, Context context)
+    throws IOException, InterruptedException 
+	{
+	
+		 Map<String, Integer> numChars = new HashMap<String, Integer>(26);
+	
+		 for(Text iw:values)
+			{
+			
+				String inChar = iw.toString();
+				if (!numChars.containsKey(inChar))
+			           numChars.put(inChar, 1);
+			     else
+				       numChars.put(inChar, numChars.get(inChar) + 1);
+				
+				
+			}
+	
+			for (Map.Entry<String, Integer> entry : numChars.entrySet())
+				{
+				     context.write(new Text (entry.getKey()), new Text(entry.getValue().toString()));
+				}
+	
+	}
+}
+
+
