@@ -1,0 +1,98 @@
+//    hadoop jar Prithvi/DNA_mirror_Prithvi.jar 
+//        Driver_DNA_mirror 
+//        /user/student/Prithvi/DNA_mirror/Input 
+//        /user/student/Prithvi/DNA_mirror/Output
+
+
+//DRIVER
+
+import org.apache.hadoop.fs.Path;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Driver_DNA_mirror 
+	{
+
+		public static void main(String[] args) 
+				throws Exception 	
+					{
+						if (args.length != 2) {
+						System.out.printf("Usage: StubDriver <input dir> <output dir>\n");
+						System.exit(-1);
+					}
+				
+				JobConf conf = new JobConf();
+				@SuppressWarnings("deprecation")
+				Job job = new Job(conf, "DNA MIRROR");
+				job.setJarByClass(Driver_DNA_mirror.class);
+				job.setMapperClass(Mapper_DNA_mirror.class);
+				job.setReducerClass(Reducer_DNA_mirror.class);
+				job.setOutputKeyClass(Text.class);
+				job.setOutputValueClass(Text.class);
+				job.setMapOutputKeyClass(Text.class);
+				job.setMapOutputValueClass(Text.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		boolean result = job.waitForCompletion(true);
+		System.exit(result ? 0 : 1);
+	}
+	}
+
+//MAPPER
+
+import java.io.IOException;
+//import java.util.Arrays;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class Mapper_DNA_mirror  extends Mapper<Object, Text, Text, Text> {
+
+  @Override
+  public void map(Object key, Text value, Context context)
+      throws IOException, InterruptedException {
+
+	  String[] words = value.toString().split("[\n]");
+	  for(String word:words)
+	  {
+		  word = word.replace("\"", "") ;
+		  String key1 = word.substring(6);
+		  String keyRev = new StringBuffer(word.substring(6)).reverse().toString();
+		  if ( key1.compareTo(keyRev)> 0) 
+		      key1 = keyRev;
+		context.write(new Text(key1), new Text(word.substring(0,5)));	  
+	  }
+  }
+}
+  
+
+//REDUCER
+
+import java.io.IOException;
+//import org.apache.hadoop.io.DoubleWritable;
+//import org.apache.hadoop.io.IntWritable;
+//import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class  Reducer_DNA_mirror extends Reducer<Text, Text, Text, Text> {
+
+@Override
+public void reduce(Text key, Iterable<Text> values, Context context)
+    throws IOException, InterruptedException 
+	{
+		String op = new String("");
+		for(Text iw:values)
+			{
+				String value1 = iw.toString();
+				op = op + ", " + value1;
+			}
+	 context.write(key, new Text(op.substring(2)));
+}
+}
